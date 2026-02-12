@@ -1,0 +1,566 @@
+----------------------------------------------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  C:\Users\ASUS\Desktop\Semester 5\Econometrics\Project\Stata\Logs\project_final.log
+  log type:  text
+ opened on:  28 Jan 2026, 20:28:59
+
+. 
+. do "Do\Project.do"
+
+. * ================== Econometrics Project - STATA ==================
+. * Working with different datasets to analyze relationships between variables
+. 
+. 
+. * ================== Part 1: CEO Salaries ==================
+. * Let's look at CEO compensation and their years of experience
+. 
+. use "Data\CEOSAL2.dta", clear
+
+. 
+. * First, let me see what the salary distribution looks like for different age groups
+. histogram salary if age < 60, title("CEO Salaries - Under 60") ///
+>     name(h_sal_under60, replace)
+(bin=10, start=185, width=260.7)
+
+. 
+. histogram salary if age >= 60, title("CEO Salaries - Age 60 and Above") ///
+>     name(h_sal_60plus, replace)
+(bin=7, start=100, width=742.71429)
+
+. 
+. * Now let's get some basic statistics
+. summarize salary ceoten
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+      salary |        177    865.8644    587.5893        100       5299
+      ceoten |        177    7.954802    7.150826          0         37
+
+. 
+. * How many CEOs are in their first year?
+. count if ceoten == 0
+  5
+
+. 
+. * And what's the longest someone has been CEO?
+. summarize ceoten
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+      ceoten |        177    7.954802    7.150826          0         37
+
+. 
+. * Let's try a simple regression to see if tenure affects salary
+. regress lsalary ceoten
+
+      Source |       SS           df       MS      Number of obs   =       177
+-------------+----------------------------------   F(1, 175)       =      2.33
+       Model |  .850907024         1  .850907024   Prob > F        =    0.1284
+    Residual |   63.795306       175  .364544606   R-squared       =    0.0132
+-------------+----------------------------------   Adj R-squared   =    0.0075
+       Total |  64.6462131       176  .367308029   Root MSE        =    .60378
+
+------------------------------------------------------------------------------
+     lsalary | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      ceoten |   .0097236   .0063645     1.53   0.128    -.0028374    .0222846
+       _cons |   6.505498   .0679911    95.68   0.000      6.37131    6.639686
+------------------------------------------------------------------------------
+
+. 
+. * The coefficient tells us that each additional year as CEO 
+. * is associated with about 0.97% higher salary on average.
+. * But this effect isn't statistically significant (p-value = 0.128).
+. 
+. 
+. * ================== Part 2: Understanding Wage Differences ==================
+. * Now let's look at workers and see how tenure, education, and experience 
+. * all affect wages
+. 
+. use "Data\WAGE2.dta", clear
+
+. 
+. * First, let's run a full model with all variables together
+. generate lnwage = ln(wage)
+
+. regress lnwage educ exper tenure
+
+      Source |       SS           df       MS      Number of obs   =       935
+-------------+----------------------------------   F(3, 931)       =     56.97
+       Model |  25.6953242         3  8.56510806   Prob > F        =    0.0000
+    Residual |  139.960959       931  .150334005   R-squared       =    0.1551
+-------------+----------------------------------   Adj R-squared   =    0.1524
+       Total |  165.656283       934  .177362188   Root MSE        =    .38773
+
+------------------------------------------------------------------------------
+      lnwage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+        educ |   .0748638   .0065124    11.50   0.000      .062083    .0876446
+       exper |   .0153285   .0033696     4.55   0.000     .0087156    .0219413
+      tenure |   .0133748   .0025872     5.17   0.000     .0082974    .0184522
+       _cons |   5.496696   .1105282    49.73   0.000     5.279782    5.713609
+------------------------------------------------------------------------------
+
+. 
+. * The coefficient on tenure is about 0.0134, which means an extra year
+. * at the same job increases wages by about 1.34 percent.
+. 
+. * But wait - maybe tenure is related to education and experience.
+. * Let me check the "pure" effect of tenure by removing its relationship
+. * with other variables.
+. 
+. regress tenure educ exper
+
+      Source |       SS           df       MS      Number of obs   =       935
+-------------+----------------------------------   F(2, 932)       =     33.16
+       Model |  1598.26499         2  799.132494   Prob > F        =    0.0000
+    Residual |  22459.4398       932  24.0981114   R-squared       =    0.0664
+-------------+----------------------------------   Adj R-squared   =    0.0644
+       Total |  24057.7048       934  25.7577139   Root MSE        =     4.909
+
+------------------------------------------------------------------------------
+      tenure | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+        educ |   .2181866   .0821428     2.66   0.008     .0569803     .379393
+       exper |     .33259   .0412472     8.06   0.000     .2516419    .4135381
+       _cons |   .4496397   1.399304     0.32   0.748    -2.296512    3.195791
+------------------------------------------------------------------------------
+
+. predict u_tenure, resid
+
+. 
+. * Now regress wages on just the leftover part of tenure
+. regress lnwage u_tenure
+
+      Source |       SS           df       MS      Number of obs   =       935
+-------------+----------------------------------   F(1, 933)       =     23.19
+       Model |  4.01766294         1  4.01766294   Prob > F        =    0.0000
+    Residual |   161.63862       933   .17324611   R-squared       =    0.0243
+-------------+----------------------------------   Adj R-squared   =    0.0232
+       Total |  165.656283       934  .177362188   Root MSE        =    .41623
+
+------------------------------------------------------------------------------
+      lnwage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    u_tenure |   .0133748   .0027774     4.82   0.000     .0079242    .0188254
+       _cons |   6.779004   .0136121   498.01   0.000      6.75229    6.805718
+------------------------------------------------------------------------------
+
+. 
+. * Interesting - we get the same coefficient! This shows that the effect
+. * of tenure on wages is independent of education and experience.
+. 
+. 
+. * ================== Part 3: Who Saves More? ==================
+. * Let's analyze what factors influence household savings
+. 
+. use "Data\SAVING.dta", clear
+
+. 
+. describe
+
+Contains data from Data\SAVING.dta
+ Observations:           100                  
+    Variables:             7                  30 Oct 1996 10:23
+----------------------------------------------------------------------------------------------------------------------------------------
+Variable      Storage   Display    Value
+    name         type    format    label      Variable label
+----------------------------------------------------------------------------------------------------------------------------------------
+sav             int     %9.0g                 annual savings, $
+inc             int     %9.0g                 annual income, $
+size            byte    %9.0g                 family size
+educ            byte    %9.0g                 years educ, household head
+age             byte    %9.0g                 age of household head
+black           byte    %9.0g                 =1 if household head is black
+cons            int     %9.0g                 annual consumption, $
+----------------------------------------------------------------------------------------------------------------------------------------
+Sorted by: 
+
+. summarize
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+         sav |        100     1582.51    3284.902      -5577      25405
+         inc |        100     9941.24    5583.998        750      32080
+        size |        100        4.35    1.493251          2         10
+        educ |        100       11.58    3.435348          2         20
+         age |        100       38.77    7.398956         26         54
+-------------+---------------------------------------------------------
+       black |        100         .07    .2564324          0          1
+        cons |        100     8358.73    5729.535     -13055      30280
+
+. 
+. * First model: just use raw income
+. regress sav inc educ size age
+
+      Source |       SS           df       MS      Number of obs   =       100
+-------------+----------------------------------   F(4, 95)        =      2.10
+       Model |  86789092.4         4  21697273.1   Prob > F        =    0.0868
+    Residual |   981478505        95  10331352.7   R-squared       =    0.0812
+-------------+----------------------------------   Adj R-squared   =    0.0426
+       Total |  1.0683e+09        99  10790581.8   Root MSE        =    3214.2
+
+------------------------------------------------------------------------------
+         sav | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+         inc |   .1086009   .0710817     1.53   0.130    -.0325141    .2497158
+        educ |   142.6169   114.4132     1.25   0.216    -84.52198    369.7558
+        size |   65.18628   221.8857     0.29   0.770    -375.3126    505.6852
+         age |  -.8013557   49.73371    -0.02   0.987    -99.53525    97.93254
+       _cons |  -1401.113   2770.993    -0.51   0.614     -6902.23    4100.003
+------------------------------------------------------------------------------
+
+. 
+. * Second model: use log of income (to account for nonlinear effects)
+. generate linc = ln(inc)
+
+. regress sav linc educ size age
+
+      Source |       SS           df       MS      Number of obs   =       100
+-------------+----------------------------------   F(4, 95)        =      1.89
+       Model |  78661058.7         4  19665264.7   Prob > F        =    0.1189
+    Residual |   989606538        95  10416910.9   R-squared       =    0.0736
+-------------+----------------------------------   Adj R-squared   =    0.0346
+       Total |  1.0683e+09        99  10790581.8   Root MSE        =    3227.5
+
+------------------------------------------------------------------------------
+         sav | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+        linc |   929.9799   750.6608     1.24   0.218    -560.2702     2420.23
+        educ |   148.3326   120.2872     1.23   0.221    -90.46765    387.1329
+        size |   44.00165    222.851     0.20   0.844    -398.4135    486.4168
+         age |   9.047198   48.67898     0.19   0.853    -87.59279    105.6872
+       _cons |  -9111.201    5964.87    -1.53   0.130    -20952.97    2730.563
+------------------------------------------------------------------------------
+
+. 
+. * Third model: also take log of savings to see percentage effects
+. generate lsav = ln(sav)
+(19 missing values generated)
+
+. regress lsav linc educ size age
+
+      Source |       SS           df       MS      Number of obs   =        81
+-------------+----------------------------------   F(4, 76)        =      4.51
+       Model |   28.799974         4  7.19999351   Prob > F        =    0.0025
+    Residual |  121.374457        76  1.59703233   R-squared       =    0.1918
+-------------+----------------------------------   Adj R-squared   =    0.1492
+       Total |  150.174431        80  1.87718039   Root MSE        =    1.2637
+
+------------------------------------------------------------------------------
+        lsav | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+        linc |   .8387223   .3639165     2.30   0.024     .1139198    1.563525
+        educ |   .0591348   .0501806     1.18   0.242    -.0408085     .159078
+        size |   .1924337   .1036043     1.86   0.067    -.0139122    .3987796
+         age |   .0115792   .0226247     0.51   0.610    -.0334817    .0566402
+       _cons |  -2.622186   2.864246    -0.92   0.363    -8.326826    3.082454
+------------------------------------------------------------------------------
+
+. 
+. * The first two models show income doesn't have a strong effect on savings.
+. * But in the third model (looking at percentage changes), the income elasticity
+. * is about 0.84 - meaning a 1% income increase leads to 0.84% more savings.
+. * This one is actually statistically significant!
+. 
+. 
+. * ================== Part 4: Education, Experience, and Wages ==================
+. * How much do education and experience really matter for wages?
+. 
+. use "Data\WAGE1.dta", clear
+
+. 
+. describe
+
+Contains data from Data\WAGE1.dta
+ Observations:           526                  
+    Variables:            24                  16 Sep 1996 15:52
+----------------------------------------------------------------------------------------------------------------------------------------
+Variable      Storage   Display    Value
+    name         type    format    label      Variable label
+----------------------------------------------------------------------------------------------------------------------------------------
+wage            float   %8.2g                 average hourly earnings
+educ            byte    %8.0g                 years of education
+exper           byte    %8.0g                 years potential experience
+tenure          byte    %8.0g                 years with current employer
+nonwhite        byte    %8.0g                 =1 if nonwhite
+female          byte    %8.0g                 =1 if female
+married         byte    %8.0g                 =1 if married
+numdep          byte    %8.0g                 number of dependents
+smsa            byte    %8.0g                 =1 if live in SMSA
+northcen        byte    %8.0g                 =1 if live in north central U.S
+south           byte    %8.0g                 =1 if live in southern region
+west            byte    %8.0g                 =1 if live in western region
+construc        byte    %8.0g                 =1 if work in construc. indus.
+ndurman         byte    %8.0g                 =1 if in nondur. manuf. indus.
+trcommpu        byte    %8.0g                 =1 if in trans, commun, pub ut
+trade           byte    %8.0g                 =1 if in wholesale or retail
+services        byte    %8.0g                 =1 if in services indus.
+profserv        byte    %8.0g                 =1 if in prof. serv. indus.
+profocc         byte    %8.0g                 =1 if in profess. occupation
+clerocc         byte    %8.0g                 =1 if in clerical occupation
+servocc         byte    %8.0g                 =1 if in service occupation
+lwage           float   %9.0g                 log(wage)
+expersq         int     %9.0g                 exper^2
+tenursq         int     %9.0g                 tenure^2
+----------------------------------------------------------------------------------------------------------------------------------------
+Sorted by: 
+
+. summarize wage educ exper tenure
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+        wage |        526    5.896103    3.693086        .53      24.98
+        educ |        526    12.56274    2.769022          0         18
+       exper |        526    17.01711    13.57216          1         51
+      tenure |        526    5.104563    7.224462          0         44
+
+. 
+. * Let's estimate a simple wage equation
+. regress wage educ exper
+
+      Source |       SS           df       MS      Number of obs   =       526
+-------------+----------------------------------   F(2, 523)       =     75.99
+       Model |   1612.2545         2  806.127251   Prob > F        =    0.0000
+    Residual |  5548.15979       523  10.6083361   R-squared       =    0.2252
+-------------+----------------------------------   Adj R-squared   =    0.2222
+       Total |  7160.41429       525  13.6388844   Root MSE        =     3.257
+
+------------------------------------------------------------------------------
+        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+        educ |   .6442721   .0538061    11.97   0.000     .5385695    .7499747
+       exper |   .0700954   .0109776     6.39   0.000     .0485297    .0916611
+       _cons |  -3.390539   .7665661    -4.42   0.000    -4.896466   -1.884613
+------------------------------------------------------------------------------
+
+. 
+. * Each additional year of education increases hourly wage by about $0.64
+. * Each additional year of experience increases it by about $0.07
+. * Both effects are very statistically significant.
+. 
+. * Now let's see how tenure (time at current job) correlates with these variables
+. pwcorr tenure wage educ exper, sig
+
+             |   tenure     wage     educ    exper
+-------------+------------------------------------
+      tenure |   1.0000 
+             |
+             |
+        wage |   0.3469   1.0000 
+             |   0.0000
+             |
+        educ |  -0.0562   0.4059   1.0000 
+             |   0.1984   0.0000
+             |
+       exper |   0.4993   0.1129  -0.2995   1.0000 
+             |   0.0000   0.0096   0.0000
+             |
+
+. 
+. * Tenure is correlated with wages (0.347) and experience (0.499)
+. * but not really with education (-0.056).
+. * This makes sense - the longer you stay at a job, the more experience you gain.
+. 
+. 
+. * ================== Part 5: Does Ability Matter for Education? ==================
+. * Let's see how family background and ability affect education level
+. 
+. use "Data\HTV.dta", clear
+
+. 
+. describe educ motheduc fatheduc abil tuit17 tuit18
+
+Variable      Storage   Display    Value
+    name         type    format    label      Variable label
+----------------------------------------------------------------------------------------------------------------------------------------
+educ            byte    %9.0g                 highest grade completed by 1991
+motheduc        byte    %9.0g                 highest grade, mother
+fatheduc        byte    %9.0g                 highest grade, father
+abil            float   %9.0g                 abil. measure, not standardized
+tuit17          float   %9.0g                 college tuition, age 17
+tuit18          float   %9.0g                 college tuition, age 18
+
+. summarize educ motheduc fatheduc abil tuit17 tuit18
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+        educ |      1,230     13.0374    2.354346          6         20
+    motheduc |      1,230    12.17805    2.278067          0         20
+    fatheduc |      1,230    12.44715    3.263835          0         20
+        abil |      1,230    1.796596    2.184406  -5.631463   6.263742
+      tuit17 |      1,230    8.568645    4.127664          0   18.17392
+-------------+---------------------------------------------------------
+      tuit18 |      1,230     8.58809    4.051148          0   18.17392
+
+. 
+. * First, let's see if ability affects education in a simple linear way
+. generate abil2 = abil^2
+
+. regress educ motheduc fatheduc abil abil2
+
+      Source |       SS           df       MS      Number of obs   =     1,230
+-------------+----------------------------------   F(4, 1225)      =    244.91
+       Model |  3027.03706         4  756.759264   Prob > F        =    0.0000
+    Residual |  3785.24262     1,225  3.08999397   R-squared       =    0.4444
+-------------+----------------------------------   Adj R-squared   =    0.4425
+       Total |  6812.27967     1,229  5.54294522   Root MSE        =    1.7578
+
+------------------------------------------------------------------------------
+        educ | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    motheduc |   .1901261   .0280957     6.77   0.000     .1350051    .2452472
+    fatheduc |   .1089387   .0196014     5.56   0.000     .0704827    .1473946
+        abil |   .4014624   .0302875    13.26   0.000     .3420413    .4608835
+       abil2 |    .050599   .0083039     6.09   0.000     .0343076    .0668905
+       _cons |   8.240226   .2874099    28.67   0.000     7.676356    8.804097
+------------------------------------------------------------------------------
+
+. 
+. * The ability term has coefficient 0.40, and ability squared has 0.05
+. test abil2
+
+ ( 1)  abil2 = 0
+
+       F(  1,  1225) =   37.13
+            Prob > F =    0.0000
+
+. 
+. * The test shows that the squared term is significant - meaning the relationship
+. * between ability and education is not just linear, it curves!
+. 
+. * Now let's check if parents' education has the same effect
+. test motheduc = fatheduc
+
+ ( 1)  motheduc - fatheduc = 0
+
+       F(  1,  1225) =    3.75
+            Prob > F =    0.0531
+
+. 
+. * The test gives p = 0.053, which is borderline. At the 5% level, we can't
+. * say for sure that mother's and father's education have different effects.
+. 
+. * Finally, does college tuition matter?
+. regress educ motheduc fatheduc abil abil2 tuit17 tuit18
+
+      Source |       SS           df       MS      Number of obs   =     1,230
+-------------+----------------------------------   F(6, 1223)      =    163.51
+       Model |  3032.22546         6   505.37091   Prob > F        =    0.0000
+    Residual |  3780.05421     1,223  3.09080475   R-squared       =    0.4451
+-------------+----------------------------------   Adj R-squared   =    0.4424
+       Total |  6812.27967     1,229  5.54294522   Root MSE        =    1.7581
+
+------------------------------------------------------------------------------
+        educ | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    motheduc |   .1928925   .0281804     6.84   0.000     .1376052    .2481797
+    fatheduc |   .1084427    .019618     5.53   0.000     .0699541    .1469314
+        abil |   .3990426   .0303493    13.15   0.000     .3395002     .458585
+       abil2 |   .0505545   .0083126     6.08   0.000     .0342459     .066863
+      tuit17 |   .0157588   .0625029     0.25   0.801     -.106866    .1383836
+      tuit18 |   .0000603   .0636477     0.00   0.999    -.1248105    .1249311
+       _cons |   8.081865   .3127685    25.84   0.000     7.468242    8.695487
+------------------------------------------------------------------------------
+
+. 
+. test tuit17 tuit18
+
+ ( 1)  tuit17 = 0
+ ( 2)  tuit18 = 0
+
+       F(  2,  1223) =    0.84
+            Prob > F =    0.4322
+
+. 
+. * The test shows that tuition is NOT significant - probably because by the time
+. * people reach college age, their education is already determined by ability
+. * and family background.
+. 
+. 
+. * ================== Part 6: Analyzing Cars ==================
+. * Let's work with car data to practice data manipulation
+. 
+. sysuse auto, clear
+(1978 automobile data)
+
+. 
+. * Remove some variables we don't need
+. drop headroom trunk
+
+. 
+. * Rename a variable to be clearer
+. rename foreign origin
+
+. 
+. * Fix the label for a variable
+. label variable mpg "mile per gallon"
+
+. 
+. * Remove expensive cars from analysis
+. drop if price > 12000
+(5 observations deleted)
+
+. 
+. * Convert measurements to metric
+. generate weight_kg = weight * 0.454
+
+. generate length_cm = length * 2.54
+
+. 
+. * Create a fuel efficiency measure (liters per 100km)
+. generate LP100km = (3.79/mpg) * (100/1.6)
+
+. label variable LP100km "liter per 100km"
+
+. 
+. * Compare fuel consumption by car origin
+. by origin, sort: summarize LP100km
+
+----------------------------------------------------------------------------------------------------------------------------------------
+-> origin = Domestic
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+     LP100km |         48    12.29594    2.667725   6.966912   19.73958
+
+----------------------------------------------------------------------------------------------------------------------------------------
+-> origin = Foreign
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+     LP100km |         21    9.896841    2.315553   5.777439   13.93382
+
+
+. 
+. * Foreign cars average 9.9 liters per 100km while domestic cars use 12.3
+. * So foreign cars are more fuel efficient
+. 
+. * Finally, let's look at repair records
+. tabulate rep78 origin
+
+    Repair |
+    record |      Car origin
+      1978 |  Domestic    Foreign |     Total
+-----------+----------------------+----------
+         1 |         2          0 |         2 
+         2 |         7          0 |         7 
+         3 |        24          3 |        27 
+         4 |         9          9 |        18 
+         5 |         2          9 |        11 
+-----------+----------------------+----------
+     Total |        44         21 |        65 
+
+. 
+. * Foreign cars seem to have better repair ratings overall (mostly 4s and 5s)
+. * while domestic cars are spread more evenly across the rating scale
+. 
+end of do-file
+
+. 
+. log close
+      name:  <unnamed>
+       log:  C:\Users\ASUS\Desktop\Semester 5\Econometrics\Project\Stata\Logs\project_final.log
+  log type:  text
+ closed on:  28 Jan 2026, 20:29:00
+----------------------------------------------------------------------------------------------------------------------------------------
